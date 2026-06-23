@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Measure — weekly weight & body tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ground: #E5E7E1;
+    --surface: #FBFBF9;
+    --ink: #18211F;
+    --muted: #6B7670;
+    --line: #D2D5CD;
+    --pine: #2E6B62;   /* weight */
+    --clay: #BD6238;   /* measurement */
+    --pine-soft: rgba(46,107,98,0.10);
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(24,33,31,0.04), 0 8px 28px rgba(24,33,31,0.05);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+
+  .wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+
+  /* ---------- header ---------- */
+  header.app {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .brand h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: 30px;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .brand .sub {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .units {
+    display: flex;
+    gap: 6px;
+  }
+  .seg {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px;
+  }
+  .seg button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--surface);
+  }
+
+  /* ---------- hero ---------- */
+  .hero {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 26px 28px 18px;
+    margin-bottom: 22px;
+  }
+  .hero-top {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .eyebrow {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin: 0 0 6px;
+  }
+  .big {
+    font-family: "Space Mono", monospace;
+    font-weight: 700;
+    font-size: 64px;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .big .unit {
+    font-size: 22px;
+    color: var(--muted);
+    margin-left: 6px;
+  }
+  .delta {
+    font-family: "Space Mono", monospace;
+    font-size: 15px;
+    margin-top: 10px;
+  }
+  .delta.down { color: var(--pine); }
+  .delta.up { color: var(--clay); }
+  .delta.flat { color: var(--muted); }
+  .hero-stats {
+    display: flex;
+    gap: 26px;
+    text-align: right;
+  }
+  .hero-stats .stat .v {
+    font-family: "Space Mono", monospace;
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero-stats .stat .l {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* ---------- ruler signature ---------- */
+  .ruler {
+    margin-top: 22px;
+    position: relative;
+    height: 52px;
+  }
+  .ruler svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .ruler .ends {
+    display: flex;
+    justify-content: space-between;
+    font-family: "Space Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px 24px;
+    margin-bottom: 22px;
+  }
+  .card h2 {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: 19px;
+    margin: 0 0 16px;
+  }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .card-head h2 { margin: 0; }
+
+  /* ---------- chart ---------- */
+  .chart-box {
+    position: relative;
+    height: 320px;
+  }
+  select.overlay {
+    font: inherit;
+    font-size: 13px;
+    color: var(--ink);
+    background: var(--ground);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 14px;
+    cursor: pointer;
+  }
+
+  /* ---------- form ---------- */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 14px;
+  }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+  .field input {
+    width: 100%;
+    font: inherit;
+    font-family: "Space Mono", monospace;
+    font-size: 15px;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--ground);
+    color: var(--ink);
+  }
+  .field input[type="date"] { font-family: "Inter", sans-serif; }
+  .field input:focus-visible {
+    outline: 2px solid var(--pine);
+    outline-offset: 1px;
+    background: var(--surface);
+  }
+  .form-actions {
+    margin-top: 18px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  button.primary {
+    font: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    background: var(--pine);
+    color: #fff;
+    border: 0;
+    border-radius: 9px;
+    padding: 11px 22px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  button.primary:hover { background: #25564f; }
+  button.ghost {
+    font: inherit;
+    font-size: 13px;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 10px 16px;
+    cursor: pointer;
+  }
+  button.ghost:hover { color: var(--ink); border-color: var(--muted); }
+  .hint { font-size: 12px; color: var(--muted); }
+
+  /* ---------- history ---------- */
+  .table-scroll { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th {
+    text-align: right;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 500;
+    padding: 0 10px 10px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  th:first-child, td:first-child { text-align: left; }
+  td {
+    padding: 11px 10px;
+    border-bottom: 1px solid var(--line);
+    font-family: "Space Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+  }
+  td:first-child { font-family: "Inter", sans-serif; }
+  tr:last-child td { border-bottom: 0; }
+  td.del button {
+    border: 0; background: transparent; cursor: pointer;
+    color: var(--muted); font-size: 16px; line-height: 1;
+    padding: 4px 6px; border-radius: 6px;
+  }
+  td.del button:hover { color: var(--clay); background: var(--ground); }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 36px 16px;
+    font-size: 14px;
+  }
+  .empty strong { color: var(--ink); font-weight: 500; display: block; margin-bottom: 4px; }
+
+  footer.app {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 30px;
+  }
+  footer.app button {
+    background: none; border: 0; color: var(--muted);
+    text-decoration: underline; cursor: pointer; font: inherit; font-size: 12px;
+  }
+  footer.app button:hover { color: var(--ink); }
+
+  @media (max-width: 560px) {
+    .big { font-size: 48px; }
+    .hero-stats { gap: 18px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app">
+    <div class="brand">
+      <h1>Measure</h1>
+      <span class="sub">weekly progress, one entry at a time</span>
+    </div>
+    <div class="units">
+      <div class="seg" id="wUnit" role="group" aria-label="Weight unit">
+        <button data-u="kg" aria-pressed="true">kg</button>
+        <button data-u="lb" aria-pressed="false">lb</button>
+      </div>
+      <div class="seg" id="mUnit" role="group" aria-label="Measurement unit">
+        <button data-u="cm" aria-pressed="true">cm</button>
+        <button data-u="in" aria-pressed="false">in</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-top">
+      <div>
+        <p class="eyebrow">Current weight</p>
+        <div class="big" id="curWeight">—</div>
+        <div class="delta flat" id="delta">No entries yet</div>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><div class="v" id="statLow">—</div><div class="l">Lowest</div></div>
+        <div class="stat"><div class="v" id="statHigh">—</div><div class="l">Highest</div></div>
+        <div class="stat"><div class="v" id="statCount">0</div><div class="l">Entries</div></div>
+      </div>
+    </div>
+    <div class="ruler">
+      <svg id="rulerSvg" viewBox="0 0 1000 52" preserveAspectRatio="none" aria-hidden="true"></svg>
+    </div>
+    <div class="ends"><span id="rulerLow"></span><span id="rulerHigh"></span></div>
+  </section>
+
+  <!-- CHART -->
+  <section class="card">
+    <div class="card-head">
+      <h2>Trend</h2>
+      <select class="overlay" id="overlaySel" aria-label="Overlay a body measurement">
+        <option value="">Weight only</option>
+        <option value="chest">+ Chest</option>
+        <option value="waist">+ Waist</option>
+        <option value="belly">+ Belly</option>
+        <option value="hips">+ Hips</option>
+        <option value="arm">+ Arm</option>
+        <option value="thigh">+ Thigh</option>
+      </select>
+    </div>
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+  </section>
+
+  <!-- ADD ENTRY -->
+  <section class="card">
+    <h2>Log this week</h2>
+    <div class="grid">
+      <div class="field"><label for="f-date">Date</label><input type="date" id="f-date" /></div>
+      <div class="field"><label for="f-weight">Weight (<span class="wlab">kg</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-weight" placeholder="—" /></div>
+      <div class="field"><label for="f-chest">Chest (<span class="mlab">cm</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-chest" placeholder="—" /></div>
+      <div class="field"><label for="f-waist">Waist (<span class="mlab">cm</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-waist" placeholder="—" /></div>
+      <div class="field"><label for="f-belly">Belly (<span class="mlab">cm</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-belly" placeholder="—" /></div>
+      <div class="field"><label for="f-hips">Hips (<span class="mlab">cm</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-hips" placeholder="—" /></div>
+      <div class="field"><label for="f-arm">Arm (<span class="mlab">cm</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-arm" placeholder="—" /></div>
+      <div class="field"><label for="f-thigh">Thigh (<span class="mlab">cm</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-thigh" placeholder="—" /></div>
+    </div>
+    <div class="form-actions">
+      <button class="primary" id="saveBtn">Save entry</button>
+      <span class="hint">Saving the same date updates that entry. Weight is required; measurements are optional.</span>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="card">
+    <div class="card-head"><h2>History</h2></div>
+    <div class="table-scroll" id="historyBox"></div>
+  </section>
+
+  <footer class="app">
+    Your data lives only in this browser. ·
+    <button id="exportBtn">Export backup</button> ·
+    <button id="importBtn">Import backup</button>
+    <input type="file" id="importFile" accept="application/json" hidden />
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- state ----
+  var KEY = "measure.entries.v1";
+  var PREF = "measure.prefs.v1";
+  // entries stored CANONICAL: weight in kg, measurements in cm
+  var entries = load(KEY, []);
+  var prefs = load(PREF, { w: "kg", m: "cm", overlay: "" });
+
+  var LB = 2.2046226218, IN = 0.3937007874;
+
+  function load(k, fb) {
+    try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; }
+    catch (e) { return fb; }
+  }
+  function save() {
+    localStorage.setItem(KEY, JSON.stringify(entries));
+    localStorage.setItem(PREF, JSON.stringify(prefs));
+  }
+
+  // ---- unit conversion (canonical <-> display) ----
+  function wOut(kg) { return prefs.w === "lb" ? kg * LB : kg; }
+  function wIn(v)  { return prefs.w === "lb" ? v / LB : v; }
+  function mOut(cm){ return prefs.m === "in" ? cm * IN : cm; }
+  function mIn(v)  { return prefs.m === "in" ? v / IN : v; }
+  function r1(n) { return Math.round(n * 10) / 10; }
+
+  function sorted() {
+    return entries.slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  }
+  function fmtDate(iso) {
+    var d = new Date(iso + "T00:00:00");
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" });
+  }
+
+  // ---- chart ----
+  var chart = null;
+  var MEAS = { chest:"Chest", waist:"Waist", belly:"Belly", hips:"Hips", arm:"Arm", thigh:"Thigh" };
+
+  function buildChart() {
+    var ctx = document.getElementById("chart").getContext("2d");
+    var rows = sorted();
+    var labels = rows.map(function (e) { return fmtDate(e.date); });
+    var wData = rows.map(function (e) { return r1(wOut(e.weight)); });
+
+    var ds = [{
+      label: "Weight (" + prefs.w + ")",
+      data: wData,
+      borderColor: "#2E6B62",
+      backgroundColor: "rgba(46,107,98,0.08)",
+      borderWidth: 2.5,
+      pointRadius: 3,
+      pointBackgroundColor: "#2E6B62",
+      tension: 0.25,
+      fill: true,
+      yAxisID: "y",
+      spanGaps: true
+    }];
+
+    var scales = {
+      y: {
+        position: "left",
+        grid: { color: "#E2E4DE" },
+        ticks: { color: "#6B7670", font: { family: "Space Mono", size: 11 } },
+        title: { display: true, text: "Weight (" + prefs.w + ")", color: "#2E6B62", font: { size: 11 } }
+      },
+      x: {
+        grid: { color: "#EDEEEA" },
+        ticks: { color: "#6B7670", font: { size: 11 }, maxRotation: 0, autoSkipPadding: 16 }
+      }
+    };
+
+    if (prefs.overlay && MEAS[prefs.overlay]) {
+      var k = prefs.overlay;
+      ds.push({
+        label: MEAS[k] + " (" + prefs.m + ")",
+        data: rows.map(function (e) { return e[k] != null ? r1(mOut(e[k])) : null; }),
+        borderColor: "#BD6238",
+        backgroundColor: "transparent",
+        borderWidth: 2.5,
+        borderDash: [5, 4],
+        pointRadius: 3,
+        pointBackgroundColor: "#BD6238",
+        tension: 0.25,
+        yAxisID: "y2",
+        spanGaps: true
+      });
+      scales.y2 = {
+        position: "right",
+        grid: { drawOnChartArea: false },
+        ticks: { color: "#6B7670", font: { family: "Space Mono", size: 11 } },
+        title: { display: true, text: MEAS[k] + " (" + prefs.m + ")", color: "#BD6238", font: { size: 11 } }
+      };
+    }
+
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type: "line",
+      data: { labels: labels, datasets: ds },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { labels: { color: "#18211F", font: { size: 12 }, usePointStyle: true, pointStyleWidth: 8 } },
+          tooltip: {
+            backgroundColor: "#18211F", padding: 10, cornerRadius: 8,
+            titleFont: { family: "Inter" }, bodyFont: { family: "Space Mono" }
+          }
+        },
+        scales: scales
+      }
+    });
+  }
+
+  // ---- hero + ruler ----
+  function renderHero() {
+    var rows = sorted();
+    var cur = document.getElementById("curWeight");
+    var delta = document.getElementById("delta");
+
+    if (!rows.length) {
+      cur.innerHTML = "—";
+      delta.className = "delta flat";
+      delta.textContent = "No entries yet";
+      document.getElementById("statLow").textContent = "—";
+      document.getElementById("statHigh").textContent = "—";
+      document.getElementById("statCount").textContent = "0";
+      document.getElementById("rulerSvg").innerHTML = "";
+      document.getElementById("rulerLow").textContent = "";
+      document.getElementById("rulerHigh").textContent = "";
+      return;
+    }
+
+    var last = rows[rows.length - 1];
+    var weights = rows.map(function (e) { return e.weight; });
+    var lo = Math.min.apply(null, weights), hi = Math.max.apply(null, weights);
+
+    cur.innerHTML = r1(wOut(last.weight)).toFixed(1) + '<span class="unit">' + prefs.w + '</span>';
+
+    if (rows.length >= 2) {
+      var prev = rows[rows.length - 2];
+      var d = wOut(last.weight) - wOut(prev.weight);
+      var dr = r1(d);
+      if (Math.abs(dr) < 0.05) { delta.className = "delta flat"; delta.textContent = "No change since last entry"; }
+      else if (dr < 0) { delta.className = "delta down"; delta.textContent = "▼ " + Math.abs(dr).toFixed(1) + " " + prefs.w + " since last entry"; }
+      else { delta.className = "delta up"; delta.textContent = "▲ " + dr.toFixed(1) + " " + prefs.w + " since last entry"; }
+    } else {
+      delta.className = "delta flat";
+      delta.textContent = "First entry logged";
+    }
+
+    document.getElementById("statLow").textContent = r1(wOut(lo)).toFixed(1);
+    document.getElementById("statHigh").textContent = r1(wOut(hi)).toFixed(1);
+    document.getElementById("statCount").textContent = rows.length;
+
+    drawRuler(lo, hi, last.weight);
+  }
+
+  function drawRuler(lo, hi, cur) {
+    var svg = document.getElementById("rulerSvg");
+    var W = 1000, baseY = 30, pad = 4;
+    var span = hi - lo;
+    if (span < 0.01) { lo -= 1; hi += 1; span = hi - lo; } // single value -> small range
+    var loR = lo - span * 0.08, hiR = hi + span * 0.08, rng = hiR - loR;
+    var x = function (v) { return pad + (v - loR) / rng * (W - pad * 2); };
+
+    var s = '<line x1="' + pad + '" y1="' + baseY + '" x2="' + (W - pad) + '" y2="' + baseY + '" stroke="#C9CCC4" stroke-width="1.5"/>';
+    // ticks
+    var ticks = 40;
+    for (var i = 0; i <= ticks; i++) {
+      var px = pad + (i / ticks) * (W - pad * 2);
+      var tall = (i % 5 === 0);
+      s += '<line x1="' + px + '" y1="' + baseY + '" x2="' + px + '" y2="' + (baseY - (tall ? 12 : 7)) + '" stroke="#C9CCC4" stroke-width="1"/>';
+    }
+    // marker needle at current
+    var mx = x(cur);
+    s += '<line x1="' + mx + '" y1="6" x2="' + mx + '" y2="' + (baseY + 4) + '" stroke="#2E6B62" stroke-width="2.5"/>';
+    s += '<circle cx="' + mx + '" cy="6" r="5" fill="#2E6B62"/>';
+    svg.innerHTML = s;
+
+    document.getElementById("rulerLow").textContent = r1(wOut(loR)).toFixed(1) + " " + prefs.w;
+    document.getElementById("rulerHigh").textContent = r1(wOut(hiR)).toFixed(1) + " " + prefs.w;
+  }
+
+  // ---- history table ----
+  function renderHistory() {
+    var box = document.getElementById("historyBox");
+    var rows = sorted().reverse();
+    if (!rows.length) {
+      box.innerHTML = '<div class="empty"><strong>Nothing logged yet</strong>Add your first weigh-in above to start the chart.</div>';
+      return;
+    }
+    var html = '<table><thead><tr><th>Date</th><th>Weight</th><th>Chest</th><th>Waist</th><th>Belly</th><th>Hips</th><th>Arm</th><th>Thigh</th><th></th></tr></thead><tbody>';
+    rows.forEach(function (e) {
+      function m(k) { return e[k] != null ? r1(mOut(e[k])).toFixed(1) : "·"; }
+      html += '<tr>'
+        + '<td>' + fmtDate(e.date) + '</td>'
+        + '<td>' + r1(wOut(e.weight)).toFixed(1) + '</td>'
+        + '<td>' + m("chest") + '</td>'
+        + '<td>' + m("waist") + '</td>'
+        + '<td>' + m("belly") + '</td>'
+        + '<td>' + m("hips") + '</td>'
+        + '<td>' + m("arm") + '</td>'
+        + '<td>' + m("thigh") + '</td>'
+        + '<td class="del"><button title="Delete entry" data-date="' + e.date + '">✕</button></td>'
+        + '</tr>';
+    });
+    html += '</tbody></table>';
+    box.innerHTML = html;
+
+    box.querySelectorAll("td.del button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var d = b.getAttribute("data-date");
+        entries = entries.filter(function (e) { return e.date !== d; });
+        save(); renderAll();
+      });
+    });
+  }
+
+  // ---- form ----
+  function setUnitLabels() {
+    document.querySelectorAll(".wlab").forEach(function (s) { s.textContent = prefs.w; });
+    document.querySelectorAll(".mlab").forEach(function (s) { s.textContent = prefs.m; });
+  }
+
+  function saveEntry() {
+    var date = document.getElementById("f-date").value;
+    var wv = parseFloat(document.getElementById("f-weight").value);
+    if (!date) { alert("Pick a date for this entry."); return; }
+    if (isNaN(wv) || wv <= 0) { alert("Enter a weight to save the entry."); return; }
+
+    function grab(id) {
+      var v = parseFloat(document.getElementById(id).value);
+      return isNaN(v) ? null : mIn(v); // canonical cm
+    }
+    var rec = {
+      date: date,
+      weight: wIn(wv), // canonical kg
+      chest: grab("f-chest"),
+      waist: grab("f-waist"),
+      belly: grab("f-belly"),
+      hips: grab("f-hips"),
+      arm: grab("f-arm"),
+      thigh: grab("f-thigh")
+    };
+    entries = entries.filter(function (e) { return e.date !== date; });
+    entries.push(rec);
+    save();
+    ["f-weight","f-chest","f-waist","f-belly","f-hips","f-arm","f-thigh"].forEach(function (id) {
+      document.getElementById(id).value = "";
+    });
+    renderAll();
+  }
+
+  // ---- units toggle ----
+  function bindSeg(id, key) {
+    document.getElementById(id).querySelectorAll("button").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        prefs[key] = btn.getAttribute("data-u");
+        document.getElementById(id).querySelectorAll("button").forEach(function (b) {
+          b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+        });
+        save(); setUnitLabels(); renderAll();
+      });
+    });
+  }
+
+  // ---- export / import ----
+  document.getElementById("exportBtn").addEventListener("click", function () {
+    var blob = new Blob([JSON.stringify({ entries: entries }, null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "measure-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  document.getElementById("importBtn").addEventListener("click", function () {
+    document.getElementById("importFile").click();
+  });
+  document.getElementById("importFile").addEventListener("change", function (ev) {
+    var file = ev.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var data = JSON.parse(reader.result);
+        var imported = Array.isArray(data) ? data : data.entries;
+        if (!Array.isArray(imported)) throw new Error("bad");
+        if (!confirm("Replace current data with " + imported.length + " imported entries?")) return;
+        entries = imported;
+        save(); renderAll();
+      } catch (e) { alert("That file doesn't look like a Measure backup."); }
+    };
+    reader.readAsText(file);
+    ev.target.value = "";
+  });
+
+  // ---- render all ----
+  function renderAll() {
+    renderHero();
+    renderHistory();
+    buildChart();
+  }
+
+  function init() {
+    // restore prefs into segments + overlay
+    document.getElementById("wUnit").querySelectorAll("button").forEach(function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-u") === prefs.w ? "true" : "false");
+    });
+    document.getElementById("mUnit").querySelectorAll("button").forEach(function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-u") === prefs.m ? "true" : "false");
+    });
+    var sel = document.getElementById("overlaySel");
+    sel.value = prefs.overlay || "";
+    sel.addEventListener("change", function () { prefs.overlay = sel.value; save(); buildChart(); });
+
+    bindSeg("wUnit", "w");
+    bindSeg("mUnit", "m");
+    document.getElementById("saveBtn").addEventListener("click", saveEntry);
+    document.getElementById("f-date").value = new Date().toISOString().slice(0, 10);
+
+    setUnitLabels();
+    renderAll();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

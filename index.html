@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --ground: #E5E7E1;
@@ -146,6 +147,8 @@
     font-size: 20px;
     font-variant-numeric: tabular-nums;
   }
+  .hero-stats .stat .v.loss { color: var(--pine); }
+  .hero-stats .stat .v.gain { color: var(--clay); }
   .hero-stats .stat .l {
     font-size: 11px;
     color: var(--muted);
@@ -160,7 +163,7 @@
     height: 52px;
   }
   .ruler svg { display: block; width: 100%; height: 100%; overflow: visible; }
-  .ruler .ends {
+  .ends {
     display: flex;
     justify-content: space-between;
     font-family: "Space Mono", monospace;
@@ -336,9 +339,70 @@
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; }
   }
+
+  /* ---------- auth ---------- */
+  #authScreen {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: var(--ground);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #authScreen[hidden] { display: none; }
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 32px 30px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .auth-logo {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: 30px;
+    margin: 0 0 6px;
+  }
+  .auth-tag { color: var(--muted); font-size: 14px; margin: 0 0 22px; }
+  #authScreen .field { margin-bottom: 14px; }
+  #authScreen input { font-family: "Inter", sans-serif; }
+  .auth-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .auth-actions .primary, .auth-actions .ghost { flex: 1; text-align: center; }
+  .auth-msg { font-size: 13px; margin-top: 14px; min-height: 18px; color: var(--clay); }
+  .auth-msg.ok { color: var(--pine); }
+  .auth-note {
+    font-size: 13px; color: var(--clay); background: rgba(189,98,56,0.08);
+    border: 1px solid rgba(189,98,56,0.25); border-radius: 9px; padding: 12px 14px;
+  }
+  #signOutBtn[hidden] { display: none; }
 </style>
 </head>
 <body>
+
+<div id="authScreen" hidden>
+  <div class="auth-card">
+    <h1 class="auth-logo">Measure</h1>
+    <p class="auth-tag">Sign in to sync your progress across your devices.</p>
+    <div id="authConfig" class="auth-note" hidden>
+      Almost there — open <strong>index.html</strong> and paste your Supabase project URL and anon key
+      into the two settings near the top of the script, then reload.
+    </div>
+    <div id="authForm">
+      <div class="field"><label for="auth-email">Email</label><input id="auth-email" type="email" autocomplete="username" placeholder="you@example.com" /></div>
+      <div class="field"><label for="auth-pw">Password</label><input id="auth-pw" type="password" autocomplete="current-password" placeholder="••••••••" /></div>
+      <div class="auth-actions">
+        <button class="primary" id="signInBtn">Sign in</button>
+        <button class="ghost" id="signUpBtn">Create account</button>
+      </div>
+      <div id="authMsg" class="auth-msg"></div>
+    </div>
+  </div>
+</div>
+
 <div class="wrap">
 
   <header class="app">
@@ -355,6 +419,7 @@
         <button data-u="cm" aria-pressed="true">cm</button>
         <button data-u="in" aria-pressed="false">in</button>
       </div>
+      <button id="signOutBtn" class="ghost" hidden>Sign out</button>
     </div>
   </header>
 
@@ -367,6 +432,7 @@
         <div class="delta flat" id="delta">No entries yet</div>
       </div>
       <div class="hero-stats">
+        <div class="stat"><div class="v" id="statLost">—</div><div class="l" id="statLostLbl">Lost</div></div>
         <div class="stat"><div class="v" id="statLow">—</div><div class="l">Lowest</div></div>
         <div class="stat"><div class="v" id="statHigh">—</div><div class="l">Highest</div></div>
         <div class="stat"><div class="v" id="statCount">0</div><div class="l">Entries</div></div>
@@ -421,7 +487,7 @@
   </section>
 
   <footer class="app">
-    Your data lives only in this browser. ·
+    Synced to your account ·
     <button id="exportBtn">Export backup</button> ·
     <button id="importBtn">Import backup</button>
     <input type="file" id="importFile" accept="application/json" hidden />
@@ -433,22 +499,67 @@
 (function () {
   "use strict";
 
+  // ============================================================
+  //  SETTINGS — paste your Supabase project values here.
+  //  Find them in your Supabase dashboard:  Project Settings → API
+  //  Both are safe to expose in front-end code.
+  // ============================================================
+  var SUPABASE_URL = "https://irlhctzdbiapjpuysodm.supabase.co";        // e.g. https://abcdxyz.supabase.co
+  var SUPABASE_ANON_KEY = "sb_publishable_PAaXmKee3CYU3UuLNQZN6g_nxXGG1qO";
+  // ============================================================
+
   // ---- state ----
-  var KEY = "measure.entries.v1";
   var PREF = "measure.prefs.v1";
-  // entries stored CANONICAL: weight in kg, measurements in cm
-  var entries = load(KEY, []);
+  // entries held in memory, CANONICAL: weight in kg, measurements in cm
+  var entries = [];
   var prefs = load(PREF, { w: "kg", m: "cm", overlay: "" });
 
   var LB = 2.2046226218, IN = 0.3937007874;
+
+  // ---- Supabase client ----
+  var configured = SUPABASE_URL.indexOf("http") === 0 && SUPABASE_ANON_KEY.indexOf("YOUR_") !== 0;
+  var sb = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+  var currentUser = null;
 
   function load(k, fb) {
     try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; }
     catch (e) { return fb; }
   }
+  // prefs (units, chart overlay) stay on this device; only entries sync.
   function save() {
-    localStorage.setItem(KEY, JSON.stringify(entries));
     localStorage.setItem(PREF, JSON.stringify(prefs));
+  }
+
+  // ---- Supabase data layer ----
+  var COLS = ["chest","waist","belly","hips","arm","thigh"];
+
+  function fetchEntries() {
+    return sb.from("entries").select("*").then(function (res) {
+      if (res.error) { console.error(res.error); alert("Could not load your data: " + res.error.message); return; }
+      entries = res.data.map(function (r) {
+        var e = { id: r.id, date: r.entry_date, weight: r.weight };
+        COLS.forEach(function (c) { e[c] = r[c]; });
+        return e;
+      });
+    });
+  }
+
+  function upsertEntry(rec) {
+    var row = { user_id: currentUser.id, entry_date: rec.date, weight: rec.weight };
+    COLS.forEach(function (c) { row[c] = (rec[c] == null ? null : rec[c]); });
+    return sb.from("entries").upsert(row, { onConflict: "user_id,entry_date" }).then(function (res) {
+      if (res.error) alert("Could not save: " + res.error.message);
+    });
+  }
+
+  function deleteEntryByDate(date) {
+    return sb.from("entries").delete().eq("entry_date", date).then(function (res) {
+      if (res.error) alert("Could not delete: " + res.error.message);
+    });
+  }
+
+  function refreshAndRender() {
+    return fetchEntries().then(renderAll);
   }
 
   // ---- unit conversion (canonical <-> display) ----
@@ -555,6 +666,9 @@
       cur.innerHTML = "—";
       delta.className = "delta flat";
       delta.textContent = "No entries yet";
+      document.getElementById("statLost").textContent = "—";
+      document.getElementById("statLost").className = "v";
+      document.getElementById("statLostLbl").textContent = "Lost";
       document.getElementById("statLow").textContent = "—";
       document.getElementById("statHigh").textContent = "—";
       document.getElementById("statCount").textContent = "0";
@@ -581,6 +695,22 @@
       delta.className = "delta flat";
       delta.textContent = "First entry logged";
     }
+
+    // total lost since the first entry (canonical kg -> display unit)
+    var lost = wOut(rows[0].weight) - wOut(last.weight); // positive = lost
+    var lostR = r1(lost);
+    var lostEl = document.getElementById("statLost");
+    if (Math.abs(lostR) < 0.05) {
+      lostEl.className = "v";
+      lostEl.textContent = "0.0";
+    } else if (lostR > 0) {
+      lostEl.className = "v loss";
+      lostEl.textContent = "▼ " + lostR.toFixed(1);
+    } else {
+      lostEl.className = "v gain";
+      lostEl.textContent = "▲ " + Math.abs(lostR).toFixed(1);
+    }
+    document.getElementById("statLostLbl").textContent = (lostR < -0.05 ? "Gained (" : "Lost (") + prefs.w + ")";
 
     document.getElementById("statLow").textContent = r1(wOut(lo)).toFixed(1);
     document.getElementById("statHigh").textContent = r1(wOut(hi)).toFixed(1);
@@ -644,8 +774,8 @@
     box.querySelectorAll("td.del button").forEach(function (b) {
       b.addEventListener("click", function () {
         var d = b.getAttribute("data-date");
-        entries = entries.filter(function (e) { return e.date !== d; });
-        save(); renderAll();
+        if (!confirm("Delete the entry for " + fmtDate(d) + "?")) return;
+        deleteEntryByDate(d).then(refreshAndRender);
       });
     });
   }
@@ -676,13 +806,14 @@
       arm: grab("f-arm"),
       thigh: grab("f-thigh")
     };
-    entries = entries.filter(function (e) { return e.date !== date; });
-    entries.push(rec);
-    save();
-    ["f-weight","f-chest","f-waist","f-belly","f-hips","f-arm","f-thigh"].forEach(function (id) {
-      document.getElementById(id).value = "";
-    });
-    renderAll();
+    var btn = document.getElementById("saveBtn");
+    btn.disabled = true;
+    upsertEntry(rec).then(function () {
+      ["f-weight","f-chest","f-waist","f-belly","f-hips","f-arm","f-thigh"].forEach(function (id) {
+        document.getElementById(id).value = "";
+      });
+      return refreshAndRender();
+    }).then(function () { btn.disabled = false; });
   }
 
   // ---- units toggle ----
@@ -719,9 +850,18 @@
         var data = JSON.parse(reader.result);
         var imported = Array.isArray(data) ? data : data.entries;
         if (!Array.isArray(imported)) throw new Error("bad");
-        if (!confirm("Replace current data with " + imported.length + " imported entries?")) return;
-        entries = imported;
-        save(); renderAll();
+        if (!confirm("Add " + imported.length + " entries to your account? Entries with the same date will be overwritten.")) return;
+        var chain = Promise.resolve();
+        imported.forEach(function (e) {
+          chain = chain.then(function () {
+            return upsertEntry({
+              date: e.date, weight: e.weight,
+              chest: e.chest, waist: e.waist, belly: e.belly,
+              hips: e.hips, arm: e.arm, thigh: e.thigh
+            });
+          });
+        });
+        chain.then(refreshAndRender);
       } catch (e) { alert("That file doesn't look like a Measure backup."); }
     };
     reader.readAsText(file);
@@ -733,6 +873,44 @@
     renderHero();
     renderHistory();
     buildChart();
+  }
+
+  // ---- auth ----
+  function authMsg(text, ok) {
+    var el = document.getElementById("authMsg");
+    el.textContent = text || "";
+    el.className = "auth-msg" + (ok ? " ok" : "");
+  }
+  function showApp(signedIn) {
+    document.getElementById("authScreen").hidden = signedIn;
+    document.getElementById("signOutBtn").hidden = !signedIn;
+  }
+  function readCreds() {
+    return {
+      email: document.getElementById("auth-email").value.trim(),
+      pw: document.getElementById("auth-pw").value
+    };
+  }
+  function signIn() {
+    var c = readCreds();
+    if (!c.email || !c.pw) { authMsg("Enter your email and password."); return; }
+    authMsg("Signing in…", true);
+    sb.auth.signInWithPassword({ email: c.email, password: c.pw }).then(function (res) {
+      if (res.error) authMsg(res.error.message);
+    });
+  }
+  function signUp() {
+    var c = readCreds();
+    if (!c.email || !c.pw) { authMsg("Enter an email and a password (6+ characters)."); return; }
+    authMsg("Creating your account…", true);
+    sb.auth.signUp({ email: c.email, password: c.pw }).then(function (res) {
+      if (res.error) authMsg(res.error.message);
+      else if (!res.data.session) authMsg("Account created. Check your email to confirm, then sign in.", true);
+      // if confirmation is off, onAuthStateChange signs you straight in
+    });
+  }
+  function signOut() {
+    sb.auth.signOut();
   }
 
   function init() {
@@ -751,9 +929,37 @@
     bindSeg("mUnit", "m");
     document.getElementById("saveBtn").addEventListener("click", saveEntry);
     document.getElementById("f-date").value = new Date().toISOString().slice(0, 10);
-
     setUnitLabels();
-    renderAll();
+
+    // auth controls
+    document.getElementById("signInBtn").addEventListener("click", signIn);
+    document.getElementById("signUpBtn").addEventListener("click", signUp);
+    document.getElementById("signOutBtn").addEventListener("click", signOut);
+    document.getElementById("auth-pw").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") signIn();
+    });
+
+    if (!configured) {
+      document.getElementById("authScreen").hidden = false;
+      document.getElementById("authConfig").hidden = false;
+      document.getElementById("authForm").hidden = true;
+      return;
+    }
+
+    // react to login / logout
+    sb.auth.onAuthStateChange(function (_event, session) {
+      currentUser = session ? session.user : null;
+      if (currentUser) {
+        showApp(true);
+        authMsg("");
+        document.getElementById("auth-pw").value = "";
+        refreshAndRender();
+      } else {
+        showApp(false);
+        entries = [];
+        renderAll();
+      }
+    });
   }
 
   init();

@@ -304,6 +304,9 @@
     white-space: nowrap;
   }
   td:first-child { font-family: "Inter", sans-serif; }
+  td.chg.loss { color: var(--pine); }
+  td.chg.gain { color: var(--clay); }
+  td.chg.muted { color: var(--muted); }
   tr:last-child td { border-bottom: 0; }
   td.del button {
     border: 0; background: transparent; cursor: pointer;
@@ -379,6 +382,41 @@
     border: 1px solid rgba(189,98,56,0.25); border-radius: 9px; padding: 12px 14px;
   }
   #signOutBtn[hidden] { display: none; }
+
+  /* ---------- viewer banner + sharing ---------- */
+  #viewBanner {
+    background: var(--pine-soft);
+    border: 1px solid rgba(46,107,98,0.3);
+    color: var(--pine);
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    margin-bottom: 22px;
+    font-size: 14px;
+  }
+  #viewBanner[hidden] { display: none; }
+  #viewBanner strong { font-weight: 600; }
+  #shareCard[hidden] { display: none; }
+  .share-add { display: flex; gap: 10px; flex-wrap: wrap; }
+  .share-add input {
+    flex: 1; min-width: 200px;
+    font: inherit; font-size: 15px; padding: 9px 11px;
+    border: 1px solid var(--line); border-radius: 9px;
+    background: var(--ground); color: var(--ink);
+  }
+  .share-add input:focus-visible { outline: 2px solid var(--pine); outline-offset: 1px; background: var(--surface); }
+  .share-list { list-style: none; margin: 16px 0 0; padding: 0; }
+  .share-list li {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px;
+    margin-bottom: 8px; font-size: 14px;
+  }
+  .share-list .who { font-family: "Inter", sans-serif; }
+  .share-list button {
+    border: 0; background: transparent; color: var(--muted);
+    cursor: pointer; font: inherit; font-size: 13px; text-decoration: underline;
+  }
+  .share-list button:hover { color: var(--clay); }
+  .share-empty { color: var(--muted); font-size: 13px; }
 </style>
 </head>
 <body>
@@ -423,6 +461,8 @@
     </div>
   </header>
 
+  <div id="viewBanner" hidden></div>
+
   <!-- HERO -->
   <section class="hero">
     <div class="hero-top">
@@ -462,7 +502,7 @@
   </section>
 
   <!-- ADD ENTRY -->
-  <section class="card">
+  <section class="card" id="logCard">
     <h2>Log this week</h2>
     <div class="grid">
       <div class="field"><label for="f-date">Date</label><input type="date" id="f-date" /></div>
@@ -486,6 +526,18 @@
     <div class="table-scroll" id="historyBox"></div>
   </section>
 
+  <!-- SHARING (owner only) -->
+  <section class="card" id="shareCard" hidden>
+    <div class="card-head"><h2>Share read-only access</h2></div>
+    <p class="hint" style="margin:-6px 0 16px">Invite someone by email. They sign in with their own account and can view your data, but can't add, edit, or delete anything.</p>
+    <div class="share-add">
+      <input type="email" id="shareEmail" placeholder="viewer@example.com" autocomplete="off" />
+      <button class="primary" id="inviteBtn">Invite</button>
+    </div>
+    <div id="shareMsg" class="auth-msg"></div>
+    <ul id="shareList" class="share-list"></ul>
+  </section>
+
   <footer class="app">
     Synced to your account ·
     <button id="exportBtn">Export backup</button> ·
@@ -501,10 +553,15 @@
 
   // ============================================================
   //  SETTINGS — paste your Supabase project values here.
-  //  Find them in your Supabase dashboard:  Project Settings → API
-  //  Both are safe to expose in front-end code.
+  //  Fastest: click the green "Connect" button at the top of your
+  //  project dashboard — it shows both values. Or navigate manually:
+  //    URL  →  Project Settings → API  ("Project URL")
+  //    KEY  →  Project Settings → API Keys → "Publishable key"
+  //            (starts sb_publishable_…). The legacy "anon" key under
+  //            the Legacy API Keys tab also works here.
+  //  Both values are safe to expose in front-end code.
   // ============================================================
-  var SUPABASE_URL = "https://irlhctzdbiapjpuysodm.supabase.co";        // e.g. https://abcdxyz.supabase.co
+  var SUPABASE_URL = "https://irlhctzdbiapjpuysodm.supabase.co";
   var SUPABASE_ANON_KEY = "sb_publishable_PAaXmKee3CYU3UuLNQZN6g_nxXGG1qO";
   // ============================================================
 
@@ -520,6 +577,9 @@
   var configured = SUPABASE_URL.indexOf("http") === 0 && SUPABASE_ANON_KEY.indexOf("YOUR_") !== 0;
   var sb = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
   var currentUser = null;
+  var viewerMode = false;   // true when signed in as an invited viewer
+  var viewOwnerId = null;   // whose data we're viewing (in viewer mode)
+  var ownerEmail = "";      // label for the banner
 
   function load(k, fb) {
     try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; }
@@ -534,8 +594,9 @@
   var COLS = ["chest","waist","belly","hips","arm","thigh"];
 
   function fetchEntries() {
-    return sb.from("entries").select("*").then(function (res) {
-      if (res.error) { console.error(res.error); alert("Could not load your data: " + res.error.message); return; }
+    var ownerId = viewerMode ? viewOwnerId : currentUser.id;
+    return sb.from("entries").select("*").eq("user_id", ownerId).then(function (res) {
+      if (res.error) { console.error(res.error); alert("Could not load data: " + res.error.message); return; }
       entries = res.data.map(function (r) {
         var e = { id: r.id, date: r.entry_date, weight: r.weight };
         COLS.forEach(function (c) { e[c] = r[c]; });
@@ -560,6 +621,94 @@
 
   function refreshAndRender() {
     return fetchEntries().then(renderAll);
+  }
+
+  // ---- role: am I a viewer of someone else's data? ----
+  function determineRoleAndLoad() {
+    var myEmail = (currentUser.email || "").toLowerCase();
+    return sb.from("shares").select("owner_id, owner_email").eq("viewer_email", myEmail).then(function (res) {
+      if (!res.error && res.data && res.data.length) {
+        viewerMode = true;
+        viewOwnerId = res.data[0].owner_id;
+        ownerEmail = res.data[0].owner_email || "another account";
+      } else {
+        viewerMode = false; viewOwnerId = null; ownerEmail = "";
+      }
+      applyMode();
+      var jobs = [refreshAndRender()];
+      if (!viewerMode) jobs.push(loadShares());
+      return Promise.all(jobs);
+    });
+  }
+
+  function applyMode() {
+    var banner = document.getElementById("viewBanner");
+    document.getElementById("logCard").hidden = viewerMode;
+    document.getElementById("shareCard").hidden = viewerMode;
+    document.getElementById("importBtn").hidden = viewerMode;
+    if (viewerMode) {
+      banner.hidden = false;
+      banner.innerHTML = "Viewing <strong>" + escapeHtml(ownerEmail) + "</strong>'s data — read only. You can't add or change entries.";
+    } else {
+      banner.hidden = true;
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c];
+    });
+  }
+
+  // ---- sharing (owner side) ----
+  function shareMsg(text, ok) {
+    var el = document.getElementById("shareMsg");
+    el.textContent = text || "";
+    el.className = "auth-msg" + (ok ? " ok" : "");
+  }
+
+  function loadShares() {
+    return sb.from("shares").select("viewer_email").eq("owner_id", currentUser.id).then(function (res) {
+      var ul = document.getElementById("shareList");
+      if (res.error) { ul.innerHTML = ""; return; }
+      var rows = res.data || [];
+      if (!rows.length) { ul.innerHTML = '<li class="share-empty">No one invited yet.</li>'; return; }
+      ul.innerHTML = "";
+      rows.forEach(function (r) {
+        var li = document.createElement("li");
+        var span = document.createElement("span");
+        span.className = "who"; span.textContent = r.viewer_email;
+        var btn = document.createElement("button");
+        btn.textContent = "Remove";
+        btn.addEventListener("click", function () { revokeShare(r.viewer_email); });
+        li.appendChild(span); li.appendChild(btn);
+        ul.appendChild(li);
+      });
+    });
+  }
+
+  function inviteViewer() {
+    var email = document.getElementById("shareEmail").value.trim().toLowerCase();
+    if (!email || email.indexOf("@") < 1) { shareMsg("Enter a valid email address."); return; }
+    if (email === (currentUser.email || "").toLowerCase()) { shareMsg("That's your own account."); return; }
+    shareMsg("Sending invite…", true);
+    sb.from("shares").upsert(
+      { owner_id: currentUser.id, owner_email: currentUser.email, viewer_email: email },
+      { onConflict: "owner_id,viewer_email" }
+    ).then(function (res) {
+      if (res.error) { shareMsg(res.error.message); return; }
+      document.getElementById("shareEmail").value = "";
+      shareMsg("Invited. They can view once they sign in with that email.", true);
+      loadShares();
+    });
+  }
+
+  function revokeShare(email) {
+    if (!confirm("Remove access for " + email + "?")) return;
+    sb.from("shares").delete().eq("owner_id", currentUser.id).eq("viewer_email", email).then(function (res) {
+      if (res.error) { shareMsg(res.error.message); return; }
+      loadShares();
+    });
   }
 
   // ---- unit conversion (canonical <-> display) ----
@@ -750,34 +899,63 @@
     var box = document.getElementById("historyBox");
     var rows = sorted().reverse();
     if (!rows.length) {
-      box.innerHTML = '<div class="empty"><strong>Nothing logged yet</strong>Add your first weigh-in above to start the chart.</div>';
+      box.innerHTML = viewerMode
+        ? '<div class="empty"><strong>Nothing to show yet</strong>This account hasn\'t logged any entries.</div>'
+        : '<div class="empty"><strong>Nothing logged yet</strong>Add your first weigh-in above to start the chart.</div>';
       return;
     }
-    var html = '<table><thead><tr><th>Date</th><th>Weight</th><th>Chest</th><th>Waist</th><th>Belly</th><th>Hips</th><th>Arm</th><th>Thigh</th><th></th></tr></thead><tbody>';
+    // change in weight vs the entry closest to 7 days earlier (canonical kg).
+    // Extra entries logged in between are ignored; we anchor to ~a week back.
+    var asc = sorted(), changeByDate = {};
+    var DAY = 86400000, TARGET = 7, TOL = 4; // accept a reference 3–11 days back
+    function ts(d) { return new Date(d + "T00:00:00").getTime(); }
+    asc.forEach(function (e, idx) {
+      var dT = ts(e.date), best = null, bestDiff = Infinity;
+      for (var j = 0; j < idx; j++) {
+        var gap = (dT - ts(asc[j].date)) / DAY;
+        if (gap <= 0) continue;
+        var diff = Math.abs(gap - TARGET);
+        if (diff < bestDiff) { bestDiff = diff; best = asc[j]; }
+      }
+      if (best && bestDiff <= TOL) changeByDate[e.date] = e.weight - best.weight;
+    });
+
+    function changeCell(date) {
+      if (!(date in changeByDate)) return '<td class="chg muted">—</td>';
+      var d = r1(wOut(changeByDate[date]));
+      if (Math.abs(d) < 0.05) return '<td class="chg muted">0.0</td>';
+      if (d < 0) return '<td class="chg loss">▼ ' + Math.abs(d).toFixed(1) + '</td>';
+      return '<td class="chg gain">▲ ' + d.toFixed(1) + '</td>';
+    }
+
+    var html = '<table><thead><tr><th>Date</th><th>Weight</th><th title="Weight change vs the entry closest to 7 days earlier">Change</th><th>Chest</th><th>Waist</th><th>Belly</th><th>Hips</th><th>Arm</th><th>Thigh</th>' + (viewerMode ? '' : '<th></th>') + '</tr></thead><tbody>';
     rows.forEach(function (e) {
       function m(k) { return e[k] != null ? r1(mOut(e[k])).toFixed(1) : "·"; }
       html += '<tr>'
         + '<td>' + fmtDate(e.date) + '</td>'
         + '<td>' + r1(wOut(e.weight)).toFixed(1) + '</td>'
+        + changeCell(e.date)
         + '<td>' + m("chest") + '</td>'
         + '<td>' + m("waist") + '</td>'
         + '<td>' + m("belly") + '</td>'
         + '<td>' + m("hips") + '</td>'
         + '<td>' + m("arm") + '</td>'
         + '<td>' + m("thigh") + '</td>'
-        + '<td class="del"><button title="Delete entry" data-date="' + e.date + '">✕</button></td>'
+        + (viewerMode ? '' : '<td class="del"><button title="Delete entry" data-date="' + e.date + '">✕</button></td>')
         + '</tr>';
     });
     html += '</tbody></table>';
     box.innerHTML = html;
 
-    box.querySelectorAll("td.del button").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var d = b.getAttribute("data-date");
-        if (!confirm("Delete the entry for " + fmtDate(d) + "?")) return;
-        deleteEntryByDate(d).then(refreshAndRender);
+    if (!viewerMode) {
+      box.querySelectorAll("td.del button").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var d = b.getAttribute("data-date");
+          if (!confirm("Delete the entry for " + fmtDate(d) + "?")) return;
+          deleteEntryByDate(d).then(refreshAndRender);
+        });
       });
-    });
+    }
   }
 
   // ---- form ----
@@ -787,6 +965,7 @@
   }
 
   function saveEntry() {
+    if (viewerMode) return;
     var date = document.getElementById("f-date").value;
     var wv = parseFloat(document.getElementById("f-weight").value);
     if (!date) { alert("Pick a date for this entry."); return; }
@@ -939,6 +1118,12 @@
       if (e.key === "Enter") signIn();
     });
 
+    // sharing controls
+    document.getElementById("inviteBtn").addEventListener("click", inviteViewer);
+    document.getElementById("shareEmail").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") inviteViewer();
+    });
+
     if (!configured) {
       document.getElementById("authScreen").hidden = false;
       document.getElementById("authConfig").hidden = false;
@@ -953,9 +1138,11 @@
         showApp(true);
         authMsg("");
         document.getElementById("auth-pw").value = "";
-        refreshAndRender();
+        determineRoleAndLoad();
       } else {
         showApp(false);
+        viewerMode = false; viewOwnerId = null; ownerEmail = "";
+        applyMode();
         entries = [];
         renderAll();
       }

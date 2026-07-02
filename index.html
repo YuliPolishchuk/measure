@@ -382,41 +382,6 @@
     border: 1px solid rgba(189,98,56,0.25); border-radius: 9px; padding: 12px 14px;
   }
   #signOutBtn[hidden] { display: none; }
-
-  /* ---------- viewer banner + sharing ---------- */
-  #viewBanner {
-    background: var(--pine-soft);
-    border: 1px solid rgba(46,107,98,0.3);
-    color: var(--pine);
-    border-radius: var(--radius);
-    padding: 12px 18px;
-    margin-bottom: 22px;
-    font-size: 14px;
-  }
-  #viewBanner[hidden] { display: none; }
-  #viewBanner strong { font-weight: 600; }
-  #shareCard[hidden] { display: none; }
-  .share-add { display: flex; gap: 10px; flex-wrap: wrap; }
-  .share-add input {
-    flex: 1; min-width: 200px;
-    font: inherit; font-size: 15px; padding: 9px 11px;
-    border: 1px solid var(--line); border-radius: 9px;
-    background: var(--ground); color: var(--ink);
-  }
-  .share-add input:focus-visible { outline: 2px solid var(--pine); outline-offset: 1px; background: var(--surface); }
-  .share-list { list-style: none; margin: 16px 0 0; padding: 0; }
-  .share-list li {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px;
-    margin-bottom: 8px; font-size: 14px;
-  }
-  .share-list .who { font-family: "Inter", sans-serif; }
-  .share-list button {
-    border: 0; background: transparent; color: var(--muted);
-    cursor: pointer; font: inherit; font-size: 13px; text-decoration: underline;
-  }
-  .share-list button:hover { color: var(--clay); }
-  .share-empty { color: var(--muted); font-size: 13px; }
 </style>
 </head>
 <body>
@@ -461,8 +426,6 @@
     </div>
   </header>
 
-  <div id="viewBanner" hidden></div>
-
   <!-- HERO -->
   <section class="hero">
     <div class="hero-top">
@@ -502,17 +465,17 @@
   </section>
 
   <!-- ADD ENTRY -->
-  <section class="card" id="logCard">
+  <section class="card">
     <h2>Log this week</h2>
     <div class="grid">
       <div class="field"><label for="f-date">Date</label><input type="date" id="f-date" /></div>
-      <div class="field"><label for="f-weight">Weight (<span class="wlab">kg</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-weight" placeholder="—" /></div>
-      <div class="field"><label for="f-chest">Chest (<span class="mlab">cm</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-chest" placeholder="—" /></div>
-      <div class="field"><label for="f-waist">Waist (<span class="mlab">cm</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-waist" placeholder="—" /></div>
-      <div class="field"><label for="f-belly">Belly (<span class="mlab">cm</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-belly" placeholder="—" /></div>
-      <div class="field"><label for="f-hips">Hips (<span class="mlab">cm</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-hips" placeholder="—" /></div>
-      <div class="field"><label for="f-arm">Arm (<span class="mlab">cm</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-arm" placeholder="—" /></div>
-      <div class="field"><label for="f-thigh">Thigh (<span class="mlab">cm</span>)</label><input type="number" step="0.1" inputmode="decimal" id="f-thigh" placeholder="—" /></div>
+      <div class="field"><label for="f-weight">Weight (<span class="wlab">kg</span>)</label><input type="number" step="0.01" inputmode="decimal" id="f-weight" placeholder="—" /></div>
+      <div class="field"><label for="f-chest">Chest (<span class="mlab">cm</span>)</label><input type="number" step="0.01" inputmode="decimal" id="f-chest" placeholder="—" /></div>
+      <div class="field"><label for="f-waist">Waist (<span class="mlab">cm</span>)</label><input type="number" step="0.01" inputmode="decimal" id="f-waist" placeholder="—" /></div>
+      <div class="field"><label for="f-belly">Belly (<span class="mlab">cm</span>)</label><input type="number" step="0.01" inputmode="decimal" id="f-belly" placeholder="—" /></div>
+      <div class="field"><label for="f-hips">Hips (<span class="mlab">cm</span>)</label><input type="number" step="0.01" inputmode="decimal" id="f-hips" placeholder="—" /></div>
+      <div class="field"><label for="f-arm">Arm (<span class="mlab">cm</span>)</label><input type="number" step="0.01" inputmode="decimal" id="f-arm" placeholder="—" /></div>
+      <div class="field"><label for="f-thigh">Thigh (<span class="mlab">cm</span>)</label><input type="number" step="0.01" inputmode="decimal" id="f-thigh" placeholder="—" /></div>
     </div>
     <div class="form-actions">
       <button class="primary" id="saveBtn">Save entry</button>
@@ -524,18 +487,6 @@
   <section class="card">
     <div class="card-head"><h2>History</h2></div>
     <div class="table-scroll" id="historyBox"></div>
-  </section>
-
-  <!-- SHARING (owner only) -->
-  <section class="card" id="shareCard" hidden>
-    <div class="card-head"><h2>Share read-only access</h2></div>
-    <p class="hint" style="margin:-6px 0 16px">Invite someone by email. They sign in with their own account and can view your data, but can't add, edit, or delete anything.</p>
-    <div class="share-add">
-      <input type="email" id="shareEmail" placeholder="viewer@example.com" autocomplete="off" />
-      <button class="primary" id="inviteBtn">Invite</button>
-    </div>
-    <div id="shareMsg" class="auth-msg"></div>
-    <ul id="shareList" class="share-list"></ul>
   </section>
 
   <footer class="app">
@@ -577,9 +528,6 @@
   var configured = SUPABASE_URL.indexOf("http") === 0 && SUPABASE_ANON_KEY.indexOf("YOUR_") !== 0;
   var sb = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
   var currentUser = null;
-  var viewerMode = false;   // true when signed in as an invited viewer
-  var viewOwnerId = null;   // whose data we're viewing (in viewer mode)
-  var ownerEmail = "";      // label for the banner
 
   function load(k, fb) {
     try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; }
@@ -594,8 +542,7 @@
   var COLS = ["chest","waist","belly","hips","arm","thigh"];
 
   function fetchEntries() {
-    var ownerId = viewerMode ? viewOwnerId : currentUser.id;
-    return sb.from("entries").select("*").eq("user_id", ownerId).then(function (res) {
+    return sb.from("entries").select("*").eq("user_id", currentUser.id).then(function (res) {
       if (res.error) { console.error(res.error); alert("Could not load data: " + res.error.message); return; }
       entries = res.data.map(function (r) {
         var e = { id: r.id, date: r.entry_date, weight: r.weight };
@@ -623,100 +570,12 @@
     return fetchEntries().then(renderAll);
   }
 
-  // ---- role: am I a viewer of someone else's data? ----
-  function determineRoleAndLoad() {
-    var myEmail = (currentUser.email || "").toLowerCase();
-    return sb.from("shares").select("owner_id, owner_email").eq("viewer_email", myEmail).then(function (res) {
-      if (!res.error && res.data && res.data.length) {
-        viewerMode = true;
-        viewOwnerId = res.data[0].owner_id;
-        ownerEmail = res.data[0].owner_email || "another account";
-      } else {
-        viewerMode = false; viewOwnerId = null; ownerEmail = "";
-      }
-      applyMode();
-      var jobs = [refreshAndRender()];
-      if (!viewerMode) jobs.push(loadShares());
-      return Promise.all(jobs);
-    });
-  }
-
-  function applyMode() {
-    var banner = document.getElementById("viewBanner");
-    document.getElementById("logCard").hidden = viewerMode;
-    document.getElementById("shareCard").hidden = viewerMode;
-    document.getElementById("importBtn").hidden = viewerMode;
-    if (viewerMode) {
-      banner.hidden = false;
-      banner.innerHTML = "Viewing <strong>" + escapeHtml(ownerEmail) + "</strong>'s data — read only. You can't add or change entries.";
-    } else {
-      banner.hidden = true;
-    }
-  }
-
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
-      return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c];
-    });
-  }
-
-  // ---- sharing (owner side) ----
-  function shareMsg(text, ok) {
-    var el = document.getElementById("shareMsg");
-    el.textContent = text || "";
-    el.className = "auth-msg" + (ok ? " ok" : "");
-  }
-
-  function loadShares() {
-    return sb.from("shares").select("viewer_email").eq("owner_id", currentUser.id).then(function (res) {
-      var ul = document.getElementById("shareList");
-      if (res.error) { ul.innerHTML = ""; return; }
-      var rows = res.data || [];
-      if (!rows.length) { ul.innerHTML = '<li class="share-empty">No one invited yet.</li>'; return; }
-      ul.innerHTML = "";
-      rows.forEach(function (r) {
-        var li = document.createElement("li");
-        var span = document.createElement("span");
-        span.className = "who"; span.textContent = r.viewer_email;
-        var btn = document.createElement("button");
-        btn.textContent = "Remove";
-        btn.addEventListener("click", function () { revokeShare(r.viewer_email); });
-        li.appendChild(span); li.appendChild(btn);
-        ul.appendChild(li);
-      });
-    });
-  }
-
-  function inviteViewer() {
-    var email = document.getElementById("shareEmail").value.trim().toLowerCase();
-    if (!email || email.indexOf("@") < 1) { shareMsg("Enter a valid email address."); return; }
-    if (email === (currentUser.email || "").toLowerCase()) { shareMsg("That's your own account."); return; }
-    shareMsg("Sending invite…", true);
-    sb.from("shares").upsert(
-      { owner_id: currentUser.id, owner_email: currentUser.email, viewer_email: email },
-      { onConflict: "owner_id,viewer_email" }
-    ).then(function (res) {
-      if (res.error) { shareMsg(res.error.message); return; }
-      document.getElementById("shareEmail").value = "";
-      shareMsg("Invited. They can view once they sign in with that email.", true);
-      loadShares();
-    });
-  }
-
-  function revokeShare(email) {
-    if (!confirm("Remove access for " + email + "?")) return;
-    sb.from("shares").delete().eq("owner_id", currentUser.id).eq("viewer_email", email).then(function (res) {
-      if (res.error) { shareMsg(res.error.message); return; }
-      loadShares();
-    });
-  }
-
   // ---- unit conversion (canonical <-> display) ----
   function wOut(kg) { return prefs.w === "lb" ? kg * LB : kg; }
   function wIn(v)  { return prefs.w === "lb" ? v / LB : v; }
   function mOut(cm){ return prefs.m === "in" ? cm * IN : cm; }
   function mIn(v)  { return prefs.m === "in" ? v / IN : v; }
-  function r1(n) { return Math.round(n * 10) / 10; }
+  function r2(n) { return Math.round(n * 100) / 100; }
 
   function sorted() {
     return entries.slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
@@ -734,7 +593,7 @@
     var ctx = document.getElementById("chart").getContext("2d");
     var rows = sorted();
     var labels = rows.map(function (e) { return fmtDate(e.date); });
-    var wData = rows.map(function (e) { return r1(wOut(e.weight)); });
+    var wData = rows.map(function (e) { return r2(wOut(e.weight)); });
 
     var ds = [{
       label: "Weight (" + prefs.w + ")",
@@ -767,7 +626,7 @@
       var k = prefs.overlay;
       ds.push({
         label: MEAS[k] + " (" + prefs.m + ")",
-        data: rows.map(function (e) { return e[k] != null ? r1(mOut(e[k])) : null; }),
+        data: rows.map(function (e) { return e[k] != null ? r2(mOut(e[k])) : null; }),
         borderColor: "#BD6238",
         backgroundColor: "transparent",
         borderWidth: 2.5,
@@ -831,15 +690,15 @@
     var weights = rows.map(function (e) { return e.weight; });
     var lo = Math.min.apply(null, weights), hi = Math.max.apply(null, weights);
 
-    cur.innerHTML = r1(wOut(last.weight)).toFixed(1) + '<span class="unit">' + prefs.w + '</span>';
+    cur.innerHTML = r2(wOut(last.weight)).toFixed(2) + '<span class="unit">' + prefs.w + '</span>';
 
     if (rows.length >= 2) {
       var prev = rows[rows.length - 2];
       var d = wOut(last.weight) - wOut(prev.weight);
-      var dr = r1(d);
-      if (Math.abs(dr) < 0.05) { delta.className = "delta flat"; delta.textContent = "No change since last entry"; }
-      else if (dr < 0) { delta.className = "delta down"; delta.textContent = "▼ " + Math.abs(dr).toFixed(1) + " " + prefs.w + " since last entry"; }
-      else { delta.className = "delta up"; delta.textContent = "▲ " + dr.toFixed(1) + " " + prefs.w + " since last entry"; }
+      var dr = r2(d);
+      if (Math.abs(dr) < 0.005) { delta.className = "delta flat"; delta.textContent = "No change since last entry"; }
+      else if (dr < 0) { delta.className = "delta down"; delta.textContent = "▼ " + Math.abs(dr).toFixed(2) + " " + prefs.w + " since last entry"; }
+      else { delta.className = "delta up"; delta.textContent = "▲ " + dr.toFixed(2) + " " + prefs.w + " since last entry"; }
     } else {
       delta.className = "delta flat";
       delta.textContent = "First entry logged";
@@ -847,22 +706,22 @@
 
     // total lost since the first entry (canonical kg -> display unit)
     var lost = wOut(rows[0].weight) - wOut(last.weight); // positive = lost
-    var lostR = r1(lost);
+    var lostR = r2(lost);
     var lostEl = document.getElementById("statLost");
-    if (Math.abs(lostR) < 0.05) {
+    if (Math.abs(lostR) < 0.005) {
       lostEl.className = "v";
-      lostEl.textContent = "0.0";
+      lostEl.textContent = "0.00";
     } else if (lostR > 0) {
       lostEl.className = "v loss";
-      lostEl.textContent = "▼ " + lostR.toFixed(1);
+      lostEl.textContent = "▼ " + lostR.toFixed(2);
     } else {
       lostEl.className = "v gain";
-      lostEl.textContent = "▲ " + Math.abs(lostR).toFixed(1);
+      lostEl.textContent = "▲ " + Math.abs(lostR).toFixed(2);
     }
-    document.getElementById("statLostLbl").textContent = (lostR < -0.05 ? "Gained (" : "Lost (") + prefs.w + ")";
+    document.getElementById("statLostLbl").textContent = (lostR < -0.005 ? "Gained (" : "Lost (") + prefs.w + ")";
 
-    document.getElementById("statLow").textContent = r1(wOut(lo)).toFixed(1);
-    document.getElementById("statHigh").textContent = r1(wOut(hi)).toFixed(1);
+    document.getElementById("statLow").textContent = r2(wOut(lo)).toFixed(2);
+    document.getElementById("statHigh").textContent = r2(wOut(hi)).toFixed(2);
     document.getElementById("statCount").textContent = rows.length;
 
     drawRuler(lo, hi, last.weight);
@@ -890,8 +749,8 @@
     s += '<circle cx="' + mx + '" cy="6" r="5" fill="#2E6B62"/>';
     svg.innerHTML = s;
 
-    document.getElementById("rulerLow").textContent = r1(wOut(loR)).toFixed(1) + " " + prefs.w;
-    document.getElementById("rulerHigh").textContent = r1(wOut(hiR)).toFixed(1) + " " + prefs.w;
+    document.getElementById("rulerLow").textContent = r2(wOut(loR)).toFixed(2) + " " + prefs.w;
+    document.getElementById("rulerHigh").textContent = r2(wOut(hiR)).toFixed(2) + " " + prefs.w;
   }
 
   // ---- history table ----
@@ -899,41 +758,46 @@
     var box = document.getElementById("historyBox");
     var rows = sorted().reverse();
     if (!rows.length) {
-      box.innerHTML = viewerMode
-        ? '<div class="empty"><strong>Nothing to show yet</strong>This account hasn\'t logged any entries.</div>'
-        : '<div class="empty"><strong>Nothing logged yet</strong>Add your first weigh-in above to start the chart.</div>';
+      box.innerHTML = '<div class="empty"><strong>Nothing logged yet</strong>Add your first weigh-in above to start the chart.</div>';
       return;
     }
-    // change in weight vs the entry closest to 7 days earlier (canonical kg).
-    // Extra entries logged in between are ignored; we anchor to ~a week back.
+    // Weekly checkpoints (canonical kg). Starting at the first entry, step forward
+    // ~7 days at a time; each checkpoint's change is measured against the PREVIOUS
+    // checkpoint, and any entries logged in between are passed over (left blank).
+    // So the column reads week-over-week, not entry-over-entry.
     var asc = sorted(), changeByDate = {};
-    var DAY = 86400000, TARGET = 7, TOL = 4; // accept a reference 3–11 days back
+    var DAY = 86400000, TARGET = 7, MINGAP = 4; // next checkpoint is >= ~4 days on
     function ts(d) { return new Date(d + "T00:00:00").getTime(); }
-    asc.forEach(function (e, idx) {
-      var dT = ts(e.date), best = null, bestDiff = Infinity;
-      for (var j = 0; j < idx; j++) {
-        var gap = (dT - ts(asc[j].date)) / DAY;
-        if (gap <= 0) continue;
-        var diff = Math.abs(gap - TARGET);
-        if (diff < bestDiff) { bestDiff = diff; best = asc[j]; }
+    if (asc.length) {
+      var anchor = asc[0], i = 1;
+      while (i < asc.length) {
+        var best = null, bestDiff = Infinity, bestIdx = -1;
+        for (var j = i; j < asc.length; j++) {
+          var gap = (ts(asc[j].date) - ts(anchor.date)) / DAY;
+          if (gap < MINGAP) continue;                 // too soon to be a new week
+          var diff = Math.abs(gap - TARGET);
+          if (diff < bestDiff) { bestDiff = diff; best = asc[j]; bestIdx = j; }
+        }
+        if (!best) break;                             // no further weekly point
+        changeByDate[best.date] = best.weight - anchor.weight;
+        anchor = best; i = bestIdx + 1;
       }
-      if (best && bestDiff <= TOL) changeByDate[e.date] = e.weight - best.weight;
-    });
+    }
 
     function changeCell(date) {
       if (!(date in changeByDate)) return '<td class="chg muted">—</td>';
-      var d = r1(wOut(changeByDate[date]));
-      if (Math.abs(d) < 0.05) return '<td class="chg muted">0.0</td>';
-      if (d < 0) return '<td class="chg loss">▼ ' + Math.abs(d).toFixed(1) + '</td>';
-      return '<td class="chg gain">▲ ' + d.toFixed(1) + '</td>';
+      var d = r2(wOut(changeByDate[date]));
+      if (Math.abs(d) < 0.005) return '<td class="chg muted">0.00</td>';
+      if (d < 0) return '<td class="chg loss">▼ ' + Math.abs(d).toFixed(2) + '</td>';
+      return '<td class="chg gain">▲ ' + d.toFixed(2) + '</td>';
     }
 
-    var html = '<table><thead><tr><th>Date</th><th>Weight</th><th title="Weight change vs the entry closest to 7 days earlier">Change</th><th>Chest</th><th>Waist</th><th>Belly</th><th>Hips</th><th>Arm</th><th>Thigh</th>' + (viewerMode ? '' : '<th></th>') + '</tr></thead><tbody>';
+    var html = '<table><thead><tr><th>Date</th><th>Weight</th><th title="Weekly change — measured against the previous weekly checkpoint; entries logged in between are skipped">Change</th><th>Chest</th><th>Waist</th><th>Belly</th><th>Hips</th><th>Arm</th><th>Thigh</th><th></th></tr></thead><tbody>';
     rows.forEach(function (e) {
-      function m(k) { return e[k] != null ? r1(mOut(e[k])).toFixed(1) : "·"; }
+      function m(k) { return e[k] != null ? r2(mOut(e[k])).toFixed(2) : "·"; }
       html += '<tr>'
         + '<td>' + fmtDate(e.date) + '</td>'
-        + '<td>' + r1(wOut(e.weight)).toFixed(1) + '</td>'
+        + '<td>' + r2(wOut(e.weight)).toFixed(2) + '</td>'
         + changeCell(e.date)
         + '<td>' + m("chest") + '</td>'
         + '<td>' + m("waist") + '</td>'
@@ -941,21 +805,19 @@
         + '<td>' + m("hips") + '</td>'
         + '<td>' + m("arm") + '</td>'
         + '<td>' + m("thigh") + '</td>'
-        + (viewerMode ? '' : '<td class="del"><button title="Delete entry" data-date="' + e.date + '">✕</button></td>')
+        + '<td class="del"><button title="Delete entry" data-date="' + e.date + '">✕</button></td>'
         + '</tr>';
     });
     html += '</tbody></table>';
     box.innerHTML = html;
 
-    if (!viewerMode) {
-      box.querySelectorAll("td.del button").forEach(function (b) {
-        b.addEventListener("click", function () {
-          var d = b.getAttribute("data-date");
-          if (!confirm("Delete the entry for " + fmtDate(d) + "?")) return;
-          deleteEntryByDate(d).then(refreshAndRender);
-        });
+    box.querySelectorAll("td.del button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var d = b.getAttribute("data-date");
+        if (!confirm("Delete the entry for " + fmtDate(d) + "?")) return;
+        deleteEntryByDate(d).then(refreshAndRender);
       });
-    }
+    });
   }
 
   // ---- form ----
@@ -965,7 +827,6 @@
   }
 
   function saveEntry() {
-    if (viewerMode) return;
     var date = document.getElementById("f-date").value;
     var wv = parseFloat(document.getElementById("f-weight").value);
     if (!date) { alert("Pick a date for this entry."); return; }
@@ -1118,12 +979,6 @@
       if (e.key === "Enter") signIn();
     });
 
-    // sharing controls
-    document.getElementById("inviteBtn").addEventListener("click", inviteViewer);
-    document.getElementById("shareEmail").addEventListener("keydown", function (e) {
-      if (e.key === "Enter") inviteViewer();
-    });
-
     if (!configured) {
       document.getElementById("authScreen").hidden = false;
       document.getElementById("authConfig").hidden = false;
@@ -1138,11 +993,9 @@
         showApp(true);
         authMsg("");
         document.getElementById("auth-pw").value = "";
-        determineRoleAndLoad();
+        refreshAndRender();
       } else {
         showApp(false);
-        viewerMode = false; viewOwnerId = null; ownerEmail = "";
-        applyMode();
         entries = [];
         renderAll();
       }
